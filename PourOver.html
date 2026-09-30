@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PourOver Journal</title>
+<meta name="description" content="An interactive pourover guide that builds a recipe for your brewer, method, dose and beans, plus a bean journal with label scanning.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an analog brew archive. A programme-style stack of method bands and hairline-ruled modules on the left; one recipe sheet on the right laid out like a printed programme entry; the journal is a card catalogue with index tabs. */
+:root{
+  --paper:#FAF8F5; --card:#FFFFFF; --ink:#1C1202; --muted:#76695A; --line:#E6DFD4; --rule:#1C1202; --soft:#F3EFE8;
+  --btn:#C3E0DB; --btn-hover:#B1D5CE; --roast:#8C5A2B; --flag:#EDB79C; --pill:#F6EE9E; --warn:#A23B22;
+  --serif:"Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sans:"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--sans);padding-inline:24px;padding-block:0 64px;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+[hidden]{display:none!important}
+h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.08;text-wrap:balance;margin:0;letter-spacing:-.015em}
+em{font-style:italic;font-weight:300}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--roast);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto}
+.label{font:500 10.5px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Buttons */
+.btn{border:1px solid rgba(28,18,2,.14);background:var(--btn);color:var(--ink);border-radius:8px;padding:10px 18px;cursor:pointer;font:500 14px/1.2 var(--sans);transition:background .15s,transform .15s}
+.btn:hover{background:var(--btn-hover)}
+.btn:active{transform:translateY(1px)}
+.btn.danger{color:var(--warn)}
+.btn:disabled{opacity:.5;cursor:default}
+.pill{display:inline-block;background:var(--pill);border:1px solid var(--ink);border-radius:8px;padding:3px 12px;font:500 12.5px/1.3 var(--sans)}
+
+/* Header (programme masthead) */
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:20px 40px;padding-block:44px 0}
+.brand h1{font-size:clamp(40px,7vw,76px);letter-spacing:-.035em;line-height:.95}
+.brand p{margin:14px 0 0;color:var(--muted);max-width:46ch;font-size:14.5px}
+.hdr-meta{display:flex;gap:32px;font-size:13px;line-height:1.35}
+.hdr-meta div{display:flex;flex-direction:column;gap:2px}
+.hdr-meta span:first-child{color:var(--muted)}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:14px}
+.unit{display:flex;align-items:center;gap:4px}
+.unit button{border:1px solid var(--line);background:transparent;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12.5px;color:var(--muted)}
+.unit button[aria-pressed="true"]{background:var(--btn);border-color:rgba(28,18,2,.14);color:var(--ink)}
+/* file-folder tabs sitting on the rule */
+.tabs{grid-column:1 / -1;display:flex;gap:0;border-bottom:1px solid var(--rule);margin-top:18px;padding-left:4px}
+.tabs button{border:0;background:none;padding:10px 28px 8px;cursor:pointer;font:500 14px var(--sans);color:var(--muted);margin-right:-6px;position:relative;z-index:0}
+.tabs button::before,.ftab::before,.step .when::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--paper);border:1px solid var(--rule);border-bottom:0;border-radius:5px 5px 0 0;transform:perspective(60px) rotateX(4deg);transform-origin:bottom}
+.tabs button[aria-selected="true"]{color:var(--ink);z-index:1}
+.tabs button[aria-selected="true"]::before{background:var(--btn)}
+.tabs button:not([aria-selected="true"]):hover::before{background:var(--soft)}
+
+/* Guide layout */
+.guide{display:grid;grid-template-columns:minmax(0,350px) minmax(0,1fr);gap:44px;align-items:start;padding-top:32px}
+.controls{display:flex;flex-direction:column;gap:30px}
+.field{display:flex;flex-direction:column;gap:10px;min-width:0}
+.field > .label{display:flex;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+
+/* Method bands (programme stack) */
+.methods{display:flex;flex-direction:column;padding-top:6px}
+.opt{display:flex;flex-direction:column;gap:6px;border:0;background:var(--band);border-radius:3px;padding:14px 16px 20px;margin-top:-8px;cursor:pointer;text-align:left;width:100%;transform:rotate(var(--rot));transform-origin:50% 100%;box-shadow:0 -1px 0 rgba(28,18,2,.06),0 -6px 14px -10px rgba(28,18,2,.25);transition:transform .2s ease,box-shadow .2s;position:relative}
+.opt:first-child{margin-top:0}
+.opt:hover{transform:rotate(0) translateY(-3px);z-index:3}
+.opt[aria-checked="true"]{transform:rotate(0) translateX(8px);z-index:2;box-shadow:inset 0 0 0 1.5px currentColor,0 10px 24px -14px rgba(28,18,2,.4)}
+.opt .t{font:400 21px/1.1 var(--serif);letter-spacing:-.01em}
+.opt .s{font-size:12.5px;opacity:.8;display:flex;gap:10px}
+.opt .no{font-variant-numeric:tabular-nums}
+
+/* Brewer + roast modules */
+.brewers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.brewer{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:transparent;padding:14px 4px 10px;cursor:pointer;font-size:12px;text-align:center;line-height:1.25;color:var(--muted)}
+.brewer svg{width:34px;height:30px;color:var(--muted)}
+.brewer:hover{background:var(--soft)}
+.brewer[aria-checked="true"]{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.brewer[aria-checked="true"] svg{color:var(--ink)}
+
+.dose{display:flex;align-items:center;gap:14px}
+.numbox{display:flex;align-items:baseline;border-bottom:1px solid var(--ink);padding:2px 2px 4px}
+.numbox input{width:52px;border:0;background:transparent;font:400 26px/1 var(--serif);text-align:right;padding:0}
+.numbox span{color:var(--muted);margin-left:3px}
+.hint{font-size:12.5px;color:var(--muted);margin:0;line-height:1.5}
+.hint.warn{color:var(--warn)}
+
+.roasts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.roast{border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:transparent;padding:12px 2px 9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:11px;line-height:1.2;text-align:center;color:var(--muted)}
+.roast:hover{background:var(--soft)}
+.roast i{width:22px;height:14px;border-radius:50%;display:block;border:1px solid rgba(28,18,2,.2);transform:rotate(-20deg);position:relative}
+.roast i::after{content:"";position:absolute;left:10%;right:10%;top:50%;height:1.5px;background:rgba(28,18,2,.35);transform:translateY(-50%) rotate(8deg);border-radius:2px}
+.roast[aria-checked="true"]{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+
+/* Range inputs: a hairline with an ink dot */
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:22px;flex:1;min-width:0;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--ink)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ink);margin-top:-7.5px;border:0}
+input[type=range]::-moz-range-track{height:1px;background:var(--ink)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--ink);border:0}
+
+select,input[type=text],input[type=number],input[type=date],input[type=search],textarea{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:10px 12px;width:100%;min-width:0;font-size:14.5px}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+textarea{resize:vertical;min-height:80px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.row2 .field > .label{padding-bottom:0;border:0}
+
+/* Recipe sheet (programme entry) */
+.recipe{background:var(--card);border:1px solid var(--line);border-radius:4px;min-width:0;box-shadow:0 1px 0 var(--line),0 18px 40px -28px rgba(28,18,2,.3)}
+.rhead{padding:30px 34px 26px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px 32px;align-items:start}
+.rtitle h2{font-size:clamp(32px,4vw,46px);margin-top:10px;letter-spacing:-.025em}
+.rtitle p{margin:12px 0 0;color:var(--muted);max-width:54ch}
+.rmeta{display:grid;grid-template-columns:repeat(2,minmax(0,auto));gap:12px 28px;font-size:13px;line-height:1.35;padding-top:2px}
+.rmeta div{display:flex;flex-direction:column;gap:1px}
+.rmeta span:first-child{color:var(--muted)}
+#logBrew{grid-column:2;justify-self:end}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.stat{min-width:0;padding:16px 20px 18px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stat:nth-child(3n){border-right:0}
+.stat:nth-child(n+4){border-bottom:0}
+.stat:first-child,.stat:nth-child(4){padding-left:34px}
+.stat b{display:block;font:400 30px/1.05 var(--serif);font-variant-numeric:lining-nums tabular-nums;margin-top:8px;letter-spacing:-.02em}
+.stat small{display:block;color:var(--muted);font-size:12.5px;margin-top:5px;line-height:1.4}
+
+.rbody{padding:30px 34px 38px;display:flex;flex-direction:column;gap:44px}
+.rbody h3{font-size:25px;margin-bottom:14px;padding-top:12px;border-top:1px solid var(--rule)}
+.sect-intro{color:var(--muted);font-size:14px;margin:-4px 0 16px;max-width:62ch}
+
+/* Timer + steps (index tabs) */
+.timerbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:16px 18px}
+.clock{font:300 46px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.03em;min-width:2.7ch}
+.now{flex:1;min-width:0}
+.now .big{font:400 21px/1.2 var(--serif)}
+.now .sub{color:var(--muted);font-size:13px;margin-top:3px}
+.tcontrols{display:flex;gap:8px}
+.bar{height:2px;background:var(--line);overflow:hidden;margin:12px 0 0}
+.bar i{display:block;height:100%;width:0;background:var(--roast);transition:width .3s linear}
+.steps{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:62px minmax(0,1fr) auto;column-gap:18px;row-gap:3px;padding:15px 0;border-top:1px solid var(--line);align-items:baseline}
+.step:first-child{border-top:0}
+.step .when{grid-row:1 / span 2;justify-self:start;font:500 12px/1 var(--mono);font-variant-numeric:tabular-nums;padding:5px 10px 4px;position:relative;z-index:0;top:-2px;border-bottom:1px solid var(--ink)}
+.step .when::before{background:transparent;transform:perspective(30px) rotateX(5deg)}
+.step .what{font:400 19px/1.25 var(--serif)}
+.step .to{font:500 14px var(--sans);color:var(--roast);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.step p{grid-column:2 / -1;margin:0;color:var(--muted);font-size:14px;line-height:1.55;max-width:62ch}
+.step.active .when{color:var(--paper)}
+.step.active .when::before{background:var(--ink)}
+.step.active .what{font-style:italic}
+.step.done{opacity:.4}
+
+/* Expected cup spectrum */
+.spec{position:relative;display:flex;flex-direction:column;padding:6px 0}
+.spec .glow{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.spec .glow path{fill:none;stroke:var(--btn);stroke-width:26;stroke-linecap:round;opacity:.95}
+.srow{display:grid;grid-template-columns:96px minmax(0,1fr) 96px;align-items:center;height:56px;position:relative}
+.send{font:500 11px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.srow .send:last-child{text-align:right}
+.send.hi{color:var(--ink)}
+.strack{position:relative;height:1px;background:#CFC6B8;margin:0 14px}
+.tick{position:absolute;top:50%;width:5px;height:5px;border-radius:50%;background:#CFC6B8;transform:translate(-50%,-50%)}
+.sdot{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:var(--ink);transform:translate(-50%,-50%);transition:left .35s ease}
+.sdot.hi{width:14px;height:14px;box-shadow:0 0 0 7px var(--flag)}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:44px}
+ul.clean{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:9px;font-size:14.5px}
+ul.clean li::marker{color:var(--roast)}
+.adj{display:flex;flex-direction:column;gap:14px;margin:0;padding:0;list-style:none;font-size:14.5px}
+.adj li{display:flex;flex-direction:column;gap:3px}
+.chip{font:500 10.5px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--roast)}
+.notes{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px}
+.notes span{border:1px solid var(--ink);border-radius:999px;padding:3px 12px;font:italic 400 15px/1.3 var(--serif)}
+table.fix{width:100%;border-collapse:collapse;font-size:14px}
+table.fix th,table.fix td{text-align:left;padding:12px 16px 12px 0;border-top:1px solid var(--line);vertical-align:top}
+table.fix tr:first-child th,table.fix tr:first-child td{border-top:0}
+table.fix th{font:400 17px/1.3 var(--serif);width:36%}
+table.fix td{color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.sources{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px;margin:0;padding-left:20px}
+.sources a{color:var(--ink);text-decoration-color:var(--line);text-underline-offset:3px}
+.sources a:hover{text-decoration-color:var(--roast)}
+.dial{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+
+/* Journal (card catalogue) */
+.jtop{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;padding-top:32px}
+.jtop h2{font-size:clamp(34px,5vw,46px);margin-top:12px;letter-spacing:-.025em}
+.jactions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.jactions input[type=search]{width:220px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:30px 18px;margin-top:34px}
+.entry{border:0;background:transparent;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column;align-items:flex-start;transition:transform .2s}
+.entry:hover{transform:translateY(-3px)}
+.ftab{display:flex;gap:14px;justify-content:space-between;min-width:62%;padding:7px 18px 5px 16px;margin-left:12px;font-size:12px;font-variant-numeric:tabular-nums;position:relative;z-index:0;top:1px}
+.ftab::before{background:var(--card);border-color:var(--ink)}
+.entry:nth-child(3n+2) .ftab{margin-left:auto;margin-right:12px}
+.ecard{width:100%;background:var(--card);border:1px solid var(--ink);border-radius:3px;overflow:hidden;display:flex;flex-direction:column}
+.entry .ph{aspect-ratio:4/3;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--muted);max-width:100%;border-bottom:1px solid var(--line)}
+.entry .ph img{width:100%;height:100%;object-fit:cover;filter:saturate(.85) contrast(1.02)}
+.entry .in{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
+.entry .n{font:400 21px/1.15 var(--serif)}
+.entry .m{font-size:13px;color:var(--muted)}
+.stars{color:var(--roast);letter-spacing:1px;font-size:13px}
+.empty{border:1px solid var(--ink);border-radius:3px;padding:48px 24px;text-align:center;margin-top:30px;color:var(--muted);background:var(--card);background-image:repeating-linear-gradient(transparent 0 31px,var(--line) 31px 32px)}
+.empty h3{color:var(--ink);font-size:28px;margin-bottom:10px}
+.empty p{max-width:50ch;margin:0 auto 20px}
+
+dialog{border:1px solid var(--ink);padding:0;border-radius:4px;background:var(--paper);color:var(--ink);width:min(780px,calc(100vw - 24px));max-height:calc(100vh - 24px);box-shadow:0 30px 80px -30px rgba(28,18,2,.4)}
+dialog::backdrop{background:rgba(28,18,2,.35)}
+.dlg{display:flex;flex-direction:column;max-height:calc(100vh - 24px)}
+.dhead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid var(--ink)}
+.dhead h2{font-size:28px}
+.dbody{padding:22px 24px;overflow:auto;display:flex;flex-direction:column;gap:30px}
+.dfoot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;padding:16px 24px calc(16px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--ink)}
+fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;min-width:0}
+legend{padding:0 0 8px;margin-bottom:6px;width:100%;border-bottom:1px solid var(--line)}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fgrid label,.fcol{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);min-width:0}
+.photos{display:flex;flex-wrap:wrap;gap:8px}
+.photos:empty{display:none}
+.photos figure{margin:0;position:relative;width:88px;height:88px;border-radius:3px;overflow:hidden;border:1px solid var(--line)}
+.photos img{width:100%;height:100%;object-fit:cover}
+.photos button{position:absolute;top:4px;right:4px;border:0;border-radius:50%;width:22px;height:22px;background:rgba(28,18,2,.65);color:#FAF8F5;cursor:pointer;line-height:1}
+.scanrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filebtn{position:relative;overflow:hidden;display:inline-block}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ocr{font:12px/1.5 var(--mono);white-space:pre-wrap;background:var(--soft);border-radius:3px;padding:12px;max-height:160px;overflow:auto;margin:8px 0 0}
+.sliders{display:flex;flex-direction:column}
+.srange{display:grid;grid-template-columns:100px minmax(0,1fr) 24px;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.srange .sl{font:500 11px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.srange .sr{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--muted)}
+.srange .sv{text-align:right;font-size:13px}
+.rate{display:flex;gap:4px;margin-top:6px}
+.rate button{border:0;background:none;font-size:26px;cursor:pointer;color:#E2DACE;padding:0 2px;line-height:1}
+.rate button.on{color:var(--roast)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:6px;font-size:14px;z-index:20;max-width:calc(100vw - 32px)}
+footer{margin-top:64px;padding-top:14px;border-top:1px solid var(--rule);color:var(--muted);font-size:12.5px;max-width:80ch}
+
+/* Tablet */
+@media (max-width:980px){
+  header.top{grid-template-columns:minmax(0,1fr) auto}
+  .hdr-meta{display:none}
+  .guide{grid-template-columns:minmax(0,1fr);gap:32px}
+  .rhead{grid-template-columns:minmax(0,1fr)}
+  #logBrew{grid-column:auto;justify-self:start}
+}
+/* Phone */
+@media (max-width:600px){
+  body{padding-inline:16px}
+  header.top{grid-template-columns:minmax(0,1fr);padding-block:28px 0;gap:14px}
+  .hdr-right{flex-direction:row;align-items:center;justify-content:space-between;order:-1}
+  .tabs{margin-top:8px}
+  .tabs button{flex:1;padding:9px 10px 8px}
+  .opt .t{font-size:19px}
+  .roast{font-size:10px}
+  .row2,.fgrid,.cols{grid-template-columns:minmax(0,1fr)}
+  .cols{gap:40px}
+  .recipe{margin-inline:-6px}
+  .rhead{padding:22px 18px 20px;gap:16px}
+  .rmeta{gap:10px 20px}
+  #logBrew{width:100%}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat,.stat:first-child,.stat:nth-child(4){padding:14px 14px 16px 18px}
+  .stat:nth-child(3n){border-right:1px solid var(--line)}
+  .stat:nth-child(2n){border-right:0}
+  .stat:nth-child(n+4){border-bottom:1px solid var(--line)}
+  .stat:nth-child(n+5){border-bottom:0}
+  .stat b{font-size:25px}
+  .rbody{padding:22px 18px 28px;gap:38px}
+  .timerwrap{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--card);margin:0 -18px;padding:10px 18px 0}
+  .timerbar{padding:12px 14px;gap:8px 14px}
+  .clock{font-size:36px}
+  .now{flex-basis:calc(100% - 110px)}
+  .now .big{font-size:18px}
+  .tcontrols{width:100%}
+  .tcontrols .btn{flex:1}
+  .step{grid-template-columns:54px minmax(0,1fr) auto;column-gap:12px;padding:14px 0}
+  .step .what{font-size:17.5px}
+  .srow{grid-template-columns:62px minmax(0,1fr) 62px;height:50px}
+  .send{font-size:9.5px;letter-spacing:.06em}
+  .strack{margin:0 10px}
+  .sdot{width:18px;height:18px}
+  .spec .glow path{stroke-width:20}
+  table.fix,table.fix tbody,table.fix tr,table.fix th,table.fix td{display:block;width:auto}
+  table.fix tr{padding:12px 0;border-top:1px solid var(--line)}
+  table.fix tr:first-child{border-top:0}
+  table.fix th,table.fix td{border:0;padding:0}
+  table.fix td{margin-top:3px}
+  .jactions{width:100%}
+  .jactions input[type=search]{width:100%;flex:1 1 100%}
+  .jactions .btn{flex:1;text-align:center}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 10px}
+  .ftab{padding:5px 10px 4px;min-width:80%;margin-left:6px;font-size:11px}
+  .entry:nth-child(3n+2) .ftab{margin-left:6px;margin-right:0}
+  .entry:nth-child(2n) .ftab{margin-left:auto;margin-right:6px}
+  .entry .in{padding:10px 12px 12px}
+  .entry .n{font-size:17px}
+  dialog{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0;margin:0;border:0}
+  .dlg{height:100%;max-height:100%}
+  .dhead{padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px}
+  .dbody{padding:18px 16px}
+  .dfoot{padding-inline:16px}
+  .dfoot .btn{flex:1}
+  .srange{grid-template-columns:78px minmax(0,1fr) 18px;gap:8px}
+}
+@media (max-width:380px){.grid{grid-template-columns:minmax(0,1fr)}.entry:nth-child(2n) .ftab{margin-left:6px;margin-right:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>PourOver <em>Journal</em></h1>
+      <p>Pick a method, a brewer, a dose and your beans. The recipe adjusts temperature, grind and pours to bring out the coffee's own notes.</p>
+    </div>
+    <div class="hdr-meta"><div><span>Recipes</span><span>7 methods<br>6 brewers</span></div><div><span>Archive</span><span>Kept in<br>this browser</span></div></div>
+    <div class="hdr-right">
+      <div class="unit" role="group" aria-label="Temperature unit">
+        <span class="label">Temp</span>
+        <button id="uC" aria-pressed="true">°C</button><button id="uF" aria-pressed="false">°F</button>
+      </div>
+    </div>
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tabGuide" aria-selected="true" aria-controls="viewGuide">Brew guide</button>
+        <button role="tab" id="tabJournal" aria-selected="false" aria-controls="viewJournal">Bean journal</button>
+      </div>
+  </header>
+
+  <!-- ============ GUIDE ============ -->
+  <main id="viewGuide" role="tabpanel">
+    <div class="guide">
+      <form class="controls" id="controls" onsubmit="return false">
+        <div class="field"><span class="label"><span>Brew method</span></span><div class="methods" id="methods" role="radiogroup" aria-label="Brew method"></div></div>
+        <div class="field"><span class="label"><span>Brewer &amp; filter shape</span></span><div class="brewers" id="brewers" role="radiogroup" aria-label="Brewer"></div><p class="hint" id="brewerHint"></p></div>
+        <div class="field">
+          <span class="label"><span>Dose (ground coffee)</span></span>
+          <div class="dose"><input type="range" id="doseRange" min="8" max="45" step="0.5" value="15" aria-label="Dose in grams"><div class="numbox"><input id="doseNum" type="number" min="8" max="45" step="0.5" value="15" aria-label="Dose in grams"><span>g</span></div></div>
+          <p class="hint" id="doseHint"></p>
+        </div>
+        <div class="field"><span class="label"><span>Roast level</span></span><div class="roasts" id="roasts" role="radiogroup" aria-label="Roast level"></div></div>
+        <div class="row2">
+          <div class="field"><label class="label" for="process">Processing</label><select id="process"></select></div>
+          <div class="field"><label class="label" for="origin">Origin</label><select id="origin"></select></div>
+        </div>
+        <div class="field"><label class="label" for="altitude"><span>Growing altitude (optional, metres)</span></label><input type="number" id="altitude" min="0" max="3000" step="50" placeholder="e.g. 1950 — printed as masl on many bags"></div>
+        <div class="field" id="dialField" hidden>
+          <span class="label"><span>4:6 flavour dial</span></span>
+          <div class="dial">
+            <label class="fcol"><span class="hint">First 40% (balance)</span><select id="dialBalance"><option value="balanced">Balanced (20/20)</option><option value="sweeter">Sweeter (smaller 1st pour)</option><option value="brighter">Brighter (larger 1st pour)</option></select></label>
+            <label class="fcol"><span class="hint">Last 60% (strength)</span><select id="dialStrength"><option value="3">Standard (3 pours)</option><option value="2">Lighter (2 pours)</option><option value="4">Stronger (4 pours)</option></select></label>
+          </div>
+        </div>
+      </form>
+
+      <section class="recipe" aria-live="polite">
+        <div class="rhead">
+          <div class="rtitle"><span class="label" id="rIndex"></span><h2 id="rTitle"></h2><p id="rSummary"></p></div>
+          <div class="rmeta" id="rMeta"></div>
+          <button class="btn primary" id="logBrew" type="button">Log this brew</button>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="rbody">
+          <div>
+            <div class="timerwrap"><div class="timerbar">
+              <div class="clock" id="clock">0:00</div>
+              <div class="now"><div class="big" id="nowBig">Ready when you are</div><div class="sub" id="nowSub">Rinse the filter, preheat, add grounds, tare the scale, then start.</div></div>
+              <div class="tcontrols"><button class="btn primary" id="tStart" type="button">Start</button><button class="btn" id="tReset" type="button">Reset</button></div>
+            </div>
+            <div class="bar"><i id="tBar"></i></div></div>
+            <ol class="steps" id="steps"></ol>
+          </div>
+          <div><h3>Expected cup</h3><p class="sect-intro">Where this recipe and these beans should land. Brew, taste, then compare in your journal.</p><div class="spec" id="spec"></div></div>
+          <div class="cols">
+            <div><h3>How to pour</h3><ul class="clean" id="technique"></ul></div>
+            <div><h3>Tuned for these beans</h3><ul class="adj" id="adjust"></ul></div>
+          </div>
+          <div class="cols">
+            <div><h3>Tasting for clarity</h3><p class="sect-intro">Notes this origin and process often show. Taste as it cools; many fruit and floral notes open up around 55–65 °C.</p><div class="notes" id="expect"></div><ul class="clean" id="clarity"></ul></div>
+            <div><h3>Before you pour</h3><ul class="clean" id="prep"></ul></div>
+          </div>
+          <div><h3>If the cup tastes…</h3><div class="tablewrap"><table class="fix" id="fix"></table></div></div>
+          <div><h3>Where this comes from</h3><ol class="sources" id="sources"></ol></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ============ JOURNAL ============ -->
+  <section id="viewJournal" role="tabpanel" hidden>
+    <div class="jtop">
+      <div><span class="pill">the archive</span><h2>Bean journal</h2></div>
+      <div class="jactions">
+        <input type="search" id="jSearch" placeholder="Search beans, notes, origin" aria-label="Search journal">
+        <button class="btn" id="jExport" type="button">Export backup</button>
+        <span class="btn filebtn">Import backup<input type="file" id="jImport" accept="application/json,.json" aria-label="Import backup"></span>
+        <button class="btn primary" id="jNew" type="button">New entry</button>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:10px">Entries and photos are saved in this browser only. Use Export backup to keep a copy or move to another device.</p>
+    <div id="jEmpty" class="empty"><h3>No beans logged yet</h3><p>Start a new entry, snap the bag's label, and Drawdown will read the origin, process, roast and tasting notes off it. Or brew from the guide and press "Log this brew".</p><button class="btn primary" type="button" onclick="openEntry()">Log your first bag</button></div>
+    <div class="grid" id="jGrid"></div>
+  </section>
+
+  <footer>Recipes are starting points drawn from the published methods cited in each recipe. Grind numbers are approximate; judge by drawdown time and taste. Journal entries and photos stay in your browser, and label text recognition runs on your device.</footer>
+</div>
+
+<dialog id="dlg">
+  <form class="dlg" id="entryForm" method="dialog" onsubmit="return false">
+    <div class="dhead"><h2 id="dTitle">New entry</h2><button class="btn" type="button" id="dClose">Close</button></div>
+    <div class="dbody">
+      <fieldset>
+        <legend class="label">Label &amp; packaging</legend>
+        <div class="scanrow">
+          <span class="btn primary filebtn">Scan label<input type="file" id="scanInput" accept="image/*" capture="environment" aria-label="Take or choose a label photo to scan"></span>
+          <span class="btn filebtn">Add photos<input type="file" id="photoInput" accept="image/*" multiple aria-label="Add bag photos"></span>
+          <span class="hint" id="scanStatus">Scan reads the text on the bag and fills in the fields below.</span>
+        </div>
+        <div class="photos" id="photos"></div>
+        <details id="ocrBox" hidden><summary class="hint">Text read from the label</summary><pre class="ocr" id="ocrText"></pre></details>
+      </fieldset>
+      <fieldset>
+        <legend class="label">The beans</legend>
+        <div class="fgrid">
+          <label>Coffee name<input type="text" id="f_name" placeholder="e.g. Gedeb Chelchele"></label>
+          <label>Roaster<input type="text" id="f_roaster"></label>
+          <label>Origin (country / region)<input type="text" id="f_origin" placeholder="e.g. Ethiopia, Yirgacheffe"></label>
+          <label>Producer / farm / station<input type="text" id="f_producer"></label>
+          <label>Process<input type="text" id="f_process" list="procList" placeholder="Washed, Natural, Honey…"></label>
+          <label>Roast level<input type="text" id="f_roast" list="roastList" placeholder="Light, Medium…"></label>
+          <label>Variety<input type="text" id="f_variety" placeholder="e.g. 74110, Gesha, SL28"></label>
+          <label>Altitude (masl)<input type="text" id="f_altitude"></label>
+          <label>Roast date<input type="date" id="f_roastDate"></label>
+          <label>Brew date<input type="date" id="f_brewDate"></label>
+        </div>
+        <label class="fcol">Roaster's tasting notes<input type="text" id="f_bagNotes" placeholder="e.g. jasmine, bergamot, peach"></label>
+      </fieldset>
+      <fieldset>
+        <legend class="label">The brew</legend>
+        <div class="fgrid">
+          <label>Method<input type="text" id="f_method"></label>
+          <label>Brewer<input type="text" id="f_brewer"></label>
+          <label>Dose / water<input type="text" id="f_ratio" placeholder="15 g / 250 g"></label>
+          <label>Water temp<input type="text" id="f_temp"></label>
+          <label>Grind setting<input type="text" id="f_grind" placeholder="e.g. Comandante 24 clicks"></label>
+          <label>Total time<input type="text" id="f_time" placeholder="3:25"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend class="label">How it tasted</legend>
+        <div class="sliders" id="sliders"></div>
+        <label class="fcol">Notes you tasted<textarea id="f_tasted" placeholder="What came through? e.g. clear lemon acidity, peach as it cooled, slightly thin finish"></textarea></label>
+        <label class="fcol">Next time<input type="text" id="f_next" placeholder="e.g. grind 2 clicks finer, try 94 °C"></label>
+        <div><span class="label">Overall</span><div class="rate" id="rate"></div></div>
+      </fieldset>
+    </div>
+    <div class="dfoot">
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn danger" type="button" id="dDelete" hidden>Delete entry</button><button class="btn" type="button" id="dUse" hidden>Brew these beans</button></div>
+      <button class="btn primary" type="button" id="dSave">Save entry</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="procList"><option>Washed</option><option>Natural</option><option>Honey</option><option>Anaerobic</option><option>Carbonic maceration</option><option>Wet-hulled</option><option>Decaf</option></datalist>
+<datalist id="roastList"><option>Light</option><option>Medium-light</option><option>Medium</option><option>Medium-dark</option><option>Dark</option></datalist>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ============================================================
+   DATA — every method cites the published source it follows
+   ============================================================ */
+const SRC = {
+  hoffmannHCG:["James Hoffmann's Ultimate V60 — Honest Coffee Guide","https://honestcoffeeguide.com/brew-recipes/james-hoffmann-v60/"],
+  hoffmannTimer:["James Hoffmann V60 timings — Timer.Coffee","https://www.timer.coffee/recipes/v60/james-hoffman-v60-recipe/"],
+  hoffmann1cup:["Hoffmann's Better 1-Cup V60 — step timings","https://klaire.codes/coffee/coffee/james-hoffman-v60/"],
+  kasuyaPP:["Tetsu Kasuya 4:6 method (made with Kasuya's permission) — Pull & Pour","https://pullandpourcoffee.com/v60-4-to-6-method-pour-over/"],
+  kasuyaPB:["Understanding the 4:6 method — Project Barista","https://projectbarista.com/4-6-method-recipe/"],
+  kasuyaCalc:["4:6 pour schedule — Coffee Calculator","https://www.coffeecalculator.app/blog/tetsu-kasuya-46-method"],
+  cafec:["CAFEC Osmotic Flow brewing theory — CAFEC (Sanyo Sangyo)","https://cafec-jp.com/brewing-guide/"],
+  osmotic3:["Osmotic Flow 3-pour method — Virtuoso Coffee","https://virtuoso-coffee.com/blogs/brew-guides/pour-over-osmotic-flow-3-pour-method"],
+  v60overview:["V60 methods compared (Hoffmann, Rao, Kasuya, Osmotic) — Acquired Coffee","https://acquiredcoffee.com/hario-v60-pour-over-brewing-method-recipes/"],
+  ect:["3 essential V60 recipes — European Coffee Trip","https://europeancoffeetrip.com/hario-v60-recipes/"],
+  wiki:["Drip coffee (bloom 30–45 s, circular pours) — Wikipedia","https://en.wikipedia.org/wiki/Drip_coffee"],
+  stumptown:["Kalita Wave brew guide — Stumptown","https://www.stumptowncoffee.com/pages/brew-guide-kalita-wave"],
+  prima:["Comparing Kalita Wave recipes (pulse pouring) — Prima Coffee","https://prima-coffee.com/learn/article/brewing-guides/comparing-kalita-wave-recipes/33005"],
+  ineed:["Kalita Wave tutorial (3:00–3:30 target) — INeedCoffee","https://ineedcoffee.com/kalita-wave-coffee-brewing-tutorial/"],
+  extracted:["How to brew Kalita Wave — Extracted Magazine","https://www.extractedmagazine.com/how-to-brew-kalita-wave-the-coffee-lovers-definitive-guide/"],
+  circulor:["Flat-bottom guide (Kalita, Orea, Wave) — Coffea Circulor","https://coffeacirculor.com/pages/guide-kalita-orea-wave-flat-bottom"],
+  tempRoast:["Pour-over water temperature by roast — Planetary Design","https://planetarydesign.com/blogs/news/pour-over-coffee-water-temperature-the-complete-guide"],
+  tempOrigin:["Water temperature by origin — Complete Home Barista","https://completehomebarista.com/faqs/brewing-methods/pour-over/water-temperature-coffee-origins/"],
+  process:["Brewing principles for washed vs natural — Home-Barista forum","https://www.home-barista.com/brewing/brewing-principles-for-different-coffee-processing-t96333.html"],
+  golden:["SCA Golden Cup standard (18–22% extraction, 1.15–1.35 TDS) — Moccamaster","https://support.moccamaster.com/hc/en-us/articles/1500009409121-What-is-the-Golden-Cup-standard"],
+  goldenCrit:["Why the Golden Cup is dated — The Coffee Chronicler","https://coffeechronicler.com/its-time-to-retire-the-golden-cup-standard/"],
+};
+
+const BREWERS = {
+  v60:{name:"Hario V60",shape:"cone",g:0,max:30,drawAdd:0,icon:"cone",
+    note:"60° cone, one large hole and spiral ribs, so flow is barely restricted. Your pour speed and agitation control extraction more than on any other brewer."},
+  origami:{name:"Origami",shape:"cone",g:0,max:30,drawAdd:0,icon:"origami",
+    note:"Many deep ribs drain very fast. With cone papers it behaves like a quick V60; with wave papers it behaves like a flat-bottom (grind a touch coarser)."},
+  kalita:{name:"Kalita Wave",shape:"flat",g:0.5,max:30,drawAdd:0,icon:"flat",
+    note:"Flat bed and three small holes restrict flow and make it forgiving: water spreads evenly and channels less, favouring sweetness and balance."},
+  orea:{name:"Orea / April",shape:"flat",g:0.3,max:30,drawAdd:0,icon:"flatopen",
+    note:"Flat-bottom with an open base, so it drains faster than a Kalita. Keeps the flat bed's evenness with more clarity; don't grind as coarse as for a Kalita."},
+  chemex:{name:"Chemex",shape:"cone",g:1,max:50,drawAdd:45,icon:"chemex",
+    note:"Thick bonded filter slows the flow and strips oils, giving a very clean, tea-like cup. Grind noticeably coarser or it will stall."},
+  melitta:{name:"Melitta / trapezoid",shape:"wedge",g:0.5,max:25,drawAdd:20,icon:"wedge",
+    note:"Wedge shape with one small hole holds water longer, adding body. Grind a little coarser and pour gently."},
+};
+
+const ICONS = {
+  cone:'<svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5h26L19 23h-4z"/><path d="M13 27h8"/><path d="M11 11l6 9M23 11l-6 9" opacity=".5"/></svg>',
+  origami:'<svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5h26L19 23h-4z"/><path d="M8 5l7 18M12 5l4 18M17 5v18M22 5l-4 18M26 5l-7 18" opacity=".5"/></svg>',
+  flat:'<svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5h26l-6 16H10z"/><path d="M13 21v3M17 21v3M21 21v3" /><path d="M7 5l4 16M11 5l3 16M16 5l1 16M20 5l-1 16M24 5l-3 16M28 5l-4 16" opacity=".35"/></svg>',
+  flatopen:'<svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5h26l-6 16H10z"/><path d="M13 21h8" stroke-dasharray="2 2"/><path d="M15 25h4"/></svg>',
+  chemex:'<svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 2h18l-7 11h-4z"/><path d="M15 13l-9 13h22l-9-13"/><path d="M13 9h8" opacity=".5"/></svg>',
+  wedge:'<svg viewBox="0 0 34 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5h26l-9 17h-8z"/><path d="M16 22h2v3h-2z"/></svg>',
+};
+
+const ROASTS = {
+  light:{name:"Light",sw:"#C69A6A",t:96,g:-0.25,flavor:"acidity, florals and fruit are intact; beans are dense and harder to extract"},
+  medlight:{name:"Medium-light",sw:"#A8743F",t:94,g:-0.1,flavor:"fruit plus caramel sweetness; still fairly dense"},
+  medium:{name:"Medium",sw:"#83522A",t:92,g:0,flavor:"balanced sweetness and body; acidity softer"},
+  meddark:{name:"Medium-dark",sw:"#5E3A1E",t:89,g:0.3,flavor:"chocolate and roast sweetness; extracts easily"},
+  dark:{name:"Dark",sw:"#3A2415",t:86,g:0.5,flavor:"roast, cocoa and smoke; very soluble, bitterness comes fast"},
+};
+
+const PROCESSES = {
+  washed:{name:"Washed (fully washed)",t:0.5,g:-0.1,r:0.3,agit:"more",
+    note:"Washed coffees are about clarity and structured acidity. Brew hotter, a touch finer, and a slightly longer ratio.",
+    notes:["crisp acidity","clean finish"],src:["process","tempOrigin"]},
+  natural:{name:"Natural (dry)",t:-1,g:0.25,r:-0.3,agit:"less",
+    note:"Fruit-dried naturals carry more fruity volatiles and extract readily. Go a notch cooler and coarser with gentler agitation so the fruit stays clean rather than boozy.",
+    notes:["berry / jammy fruit","winey sweetness"],src:["process","tempOrigin"]},
+  honey:{name:"Honey / pulped natural",t:-0.5,g:0.1,r:0,agit:"moderate",
+    note:"Sits between washed and natural: more body and sweetness than washed. Middle-of-the-road temperature and agitation.",
+    notes:["syrupy sweetness","round body"],src:["process"]},
+  anaerobic:{name:"Anaerobic / carbonic / co-ferment",t:-2,g:0.3,r:-0.2,agit:"less",
+    note:"Experimental fermentations are intensely aromatic and very soluble. Start cooler and coarser with minimal agitation; push hotter only if the cup tastes thin.",
+    notes:["intense ferment fruit","liqueur-like aromatics"],src:["process"]},
+  wethulled:{name:"Wet-hulled (giling basah)",t:-1,g:0.1,r:-0.3,agit:"moderate",
+    note:"Typical of Sumatra: heavy body, low acidity, earthy and herbal. A slightly cooler brew keeps it from turning muddy.",
+    notes:["earthy / cedar","full body"],src:["tempOrigin"]},
+  decaf:{name:"Decaf",t:-3,g:0.25,r:0,agit:"less",
+    note:"Decaffeination makes beans more porous and soluble. Use lower temperature and less agitation.",
+    notes:[],src:["process"]},
+};
+
+const ORIGINS = {
+  unknown:{name:"Unknown / blend",t:0,g:0,notes:[],note:""},
+  ethiopia:{name:"Ethiopia",t:1,g:0,notes:["jasmine","bergamot","stone fruit","lemon tea"],
+    note:"High-grown, dense heirloom coffees. Washed lots take heat well; naturals from Ethiopia often taste better slightly coarser."},
+  kenya:{name:"Kenya",t:1,g:0,notes:["blackcurrant","grapefruit","tomato-leaf savoury"],
+    note:"Dense SL28/SL34 beans with big, juicy acidity. Hotter water helps sweetness catch up with the acidity."},
+  rwanda:{name:"Rwanda / Burundi",t:0.5,g:0,notes:["red apple","black tea","orange"],note:"High-altitude, fairly dense; treat like a light East African."},
+  colombia:{name:"Colombia",t:0,g:0,notes:["caramel","red fruit","citrus"],note:"Medium-density beans that extract reliably in the middle of the range."},
+  central:{name:"Central America (Guatemala, Costa Rica, Panama…)",t:0,g:0,notes:["milk chocolate","brown sugar","citrus"],note:"Varies with altitude; Panamanian Geshas behave like dense Ethiopians (go hotter)."},
+  peru:{name:"Peru / Bolivia",t:0,g:0,notes:["cocoa","panela","mild citrus"],note:"Mostly medium density and forgiving."},
+  brazil:{name:"Brazil",t:-1,g:0.25,notes:["hazelnut","cocoa","low acidity"],note:"Lower-grown, less dense beans extract easily. Cooler water avoids bitterness in the chocolate notes."},
+  indonesia:{name:"Indonesia (Sumatra, Java, Sulawesi)",t:-1,g:0,notes:["earthy","spice","heavy body"],note:"Usually wet-hulled with low acidity; keep it cooler for a cleaner cup."},
+  yemen:{name:"Yemen",t:0,g:0.1,notes:["dried fruit","spice","wine"],note:"Mostly naturals with complex dried-fruit character; treat like a natural."},
+  asia:{name:"Other Asia / Pacific",t:0,g:0,notes:[],note:""},
+};
+
+const f = (s) => { const m=Math.floor(s/60), r=Math.round(s%60); return m+":"+String(r).padStart(2,"0"); };
+const r0 = (n) => Math.round(n);
+
+/* Each method returns steps: {t, end, what, detail, to} — t/end in seconds, to = cumulative grams on the scale */
+const METHODS = {
+  hoffmann:{
+    name:"Ultimate V60 Technique", by:"James Hoffmann", native:"v60", ratio:16.67, grind:1, agit:"high",
+    blurb:"Bloom, two big pours that keep the cone full, then a stir and swirl to flatten the bed. Hot and high-extraction; great for light washed coffees.",
+    target:[180,210],
+    temp:{light:100,medlight:98,medium:94,meddark:91,dark:88},
+    steps:(D,W)=>[
+      {t:0,end:10,what:"Bloom",to:r0(D*2),detail:"Make a small well in the grounds first. Pour about twice the coffee's weight, starting in the well and spiralling out so every ground is wet."},
+      {t:10,end:15,what:"Swirl",detail:"Swirl the brewer until the slurry looks even and has no dry clumps."},
+      {t:15,end:45,what:"Let it bloom",detail:"Wait until 0:45 while CO₂ escapes."},
+      {t:45,end:75,what:"First main pour",to:r0(W*0.6),detail:"Pour to 60% of the water within 30 s: start in the centre to churn the bed, then concentric circles until the cone is nearly full."},
+      {t:75,end:105,what:"Second main pour",to:r0(W),detail:"Pour the rest more gently in the centre, keeping the cone full, finishing by 1:45."},
+      {t:105,end:115,what:"Stir once each way",detail:"With a spoon, one gentle stir clockwise and one anticlockwise to knock grounds off the walls without making a whirlpool."},
+      {t:115,end:125,what:"Final swirl",detail:"Once it has drained a little, give one or two gentle swirls so the bed settles flat."},
+      {t:125,end:210,what:"Drawdown",detail:"Let it drain. Aim to finish around 3:30; faster means grind finer, slower means coarser."},
+    ],
+    technique:["Use a gooseneck and pour fast enough in the main pours to keep the cone near full; a full V60 holds temperature.","The stir and swirl at the end are what give an even, flat bed. Skipping them leaves grounds stranded high on the paper (under-extracted)."],
+    sources:["hoffmannHCG","hoffmannTimer","ect"],
+  },
+  hoffmann1:{
+    name:"Better 1-Cup V60", by:"James Hoffmann", native:"v60", ratio:16.67, grind:0.85, agit:"moderate", fixedWaterNote:"Designed around 15 g / 250 g.",
+    blurb:"Hoffmann's small-dose version: a bloom and four equal pulses. Keeps extraction up when there isn't much coffee in the cone.",
+    target:[165,195],
+    temp:{light:100,medlight:98,medium:94,meddark:91,dark:88},
+    steps:(D,W)=>[
+      {t:0,end:10,what:"Bloom",to:r0(W*0.2),detail:"Make a small mound/well, then pour 20% of the water."},
+      {t:10,end:15,what:"Gentle swirl",detail:"Swirl for about 5 seconds to wet everything."},
+      {t:15,end:45,what:"Wait",detail:"Let it bloom until 0:45."},
+      {t:45,end:60,what:"Pour 2",to:r0(W*0.4),detail:"Pour to 40% in 15 s, then pause 10 s."},
+      {t:70,end:80,what:"Pour 3",to:r0(W*0.6),detail:"Pour to 60%, then pause."},
+      {t:90,end:100,what:"Pour 4",to:r0(W*0.8),detail:"Pour to 80%, then pause."},
+      {t:110,end:120,what:"Pour 5",to:r0(W),detail:"Pour to 100% by 2:00."},
+      {t:120,end:125,what:"Gentle swirl",detail:"One gentle swirl to flatten the bed."},
+      {t:125,end:195,what:"Drawdown",detail:"Finish around 3:00."},
+    ],
+    technique:["Pours are small and steady in circles, never directly on the paper.","Grind a bit finer than for the 30 g recipe; a small bed drains fast."],
+    sources:["hoffmann1cup","hoffmannHCG"],
+  },
+  kasuya:{
+    name:"4:6 Method", by:"Tetsu Kasuya · 2016 World Brewers Cup", native:"v60", ratio:15, fixedRatio:true, grind:3.4, agit:"low",
+    blurb:"Five pours of equal-ish size, each draining fully. The first 40% of water sets sweetness vs acidity; the last 60% sets strength. Coarse grind, very repeatable.",
+    target:[195,225],
+    temp:{light:93,medlight:91,medium:88,meddark:85,dark:83},
+    steps:(D,W,s)=>{
+      const first = s.dialBalance==="sweeter"?[0.167,0.233]:s.dialBalance==="brighter"?[0.233,0.167]:[0.2,0.2];
+      const n = +s.dialStrength || 3;
+      const times=[0,45,90,135,165,190].slice(0,2+n);
+      if(n===2){times[2]=90;times[3]=150;}
+      if(n===4){times.splice(0,times.length,0,45,90,125,155,185);}
+      const out=[]; let cum=0;
+      first.forEach((p,i)=>{cum+=W*p; out.push({t:times[i],end:times[i]+10,what:i===0?"Pour 1 (bloom)":"Pour 2",to:r0(cum),detail:i===0?"Spiral from the centre outward over ~10 s. A smaller first pour gives a sweeter cup, a larger one more acidity.":"Wait until the bed has drained, then pour the same way."});});
+      for(let i=0;i<n;i++){cum+=W*0.6/n; out.push({t:times[2+i],end:times[2+i]+10,what:"Pour "+(3+i),to:r0(i===n-1?W:cum),detail:"Pour once the previous water has drained through."});}
+      const last=times[1+n]+10;
+      out.push({t:last,end:210,what:"Drawdown",detail:"Remove the dripper around 3:30 even if a little water remains."});
+      return out;
+    },
+    technique:["Each pour takes about 10 s, spiralling from the centre outward.","Wait for each pour to drain before the next; that separation is what gives the method its clarity.","Kasuya brews coarse (close to French press). If drawdown runs long, go coarser rather than finer.","Kasuya competed with very soft (near-distilled) water and a coarse grind, which yields lower extraction. With hard tap water the cup can taste flat; filtered water helps."],
+    sources:["kasuyaPP","kasuyaPB","kasuyaCalc"],
+  },
+  osmotic:{
+    name:"Osmotic Flow", by:"CAFEC", native:"v60", ratio:15, grind:2, agit:"low",
+    blurb:"A slow, low pour kept to a small circle in the centre so water flows continuously through the coffee rather than soaking it. Gentle and sweet; forgiving on darker roasts.",
+    target:[180,210],
+    temp:null,
+    steps:(D,W)=>[
+      {t:0,end:20,what:"Bloom",to:r0(W*0.125),detail:"Pour slowly from the centre in a small spiral until all the grounds are just wet."},
+      {t:20,end:40,what:"Let it bloom",detail:"Let it rise and degas."},
+      {t:40,end:85,what:"First pour",to:r0(W*0.625),detail:"Pour slowly in coin-sized circles in the centre. Match your pour rate to the drip rate so the level barely rises. Don't wet the paper."},
+      {t:100,end:125,what:"Second pour",to:r0(W*0.875),detail:"When the level has dropped about a third, pour again in the same small circles."},
+      {t:140,end:155,what:"Third pour",to:r0(W),detail:"When it drops slightly, add the final water."},
+      {t:155,end:210,what:"Drawdown",detail:"Let it finish, ideally by 3:00–3:30."},
+    ],
+    technique:["Keep the kettle low and the stream thin; the point is a steady flow through the bed, not turbulence.","Picture where the water's centre of gravity lands. Staying in the centre avoids bypass down the paper walls.","CAFEC's idea: continuous flow keeps a strong concentration gradient, so fresh water keeps dissolving coffee."],
+    sources:["cafec","osmotic3","v60overview"],
+  },
+  threepour:{
+    name:"Bloom + 3 pours", by:"Standard pourover structure", native:"v60", ratio:16, grind:1.5, agit:"moderate",
+    blurb:"The common baseline most recipes build on: a bloom, then the remaining water in three equal pours. A good neutral starting point for any coffee.",
+    target:[180,210],
+    temp:null,
+    steps:(D,W)=>{const b=r0(D*2.5),R=W-b; return [
+      {t:0,end:10,what:"Bloom",to:b,detail:"Pour about 2.5× the coffee weight in a spiral and make sure every ground is wet (a gentle swirl helps)."},
+      {t:10,end:45,what:"Let it bloom",detail:"30–45 s for fresh coffee to release CO₂."},
+      {t:45,end:60,what:"Pour 1",to:r0(b+R/3),detail:"Spiral out from the centre and back, avoiding the paper."},
+      {t:75,end:90,what:"Pour 2",to:r0(b+2*R/3),detail:"Start as the level drops about halfway."},
+      {t:105,end:120,what:"Pour 3",to:W,detail:"Finish the water."},
+      {t:120,end:125,what:"Gentle swirl",detail:"One swirl to level the bed."},
+      {t:125,end:210,what:"Drawdown",detail:"Aim to finish between 3:00 and 3:30."},
+    ];},
+    technique:["Circular pours from the centre outward and back, keeping the stream off the paper walls.","Keep each pour the same speed so extraction stays even from pour to pour."],
+    sources:["wiki","v60overview","ect"],
+  },
+  rao:{
+    name:"Single continuous pour", by:"Popularised by Scott Rao", native:"v60", ratio:16.5, grind:1.4, agit:"moderate",
+    blurb:"A thorough bloom, then all the remaining water in one steady spiral, finished with a gentle swirl (the \"Rao spin\"). Fewer variables, very even.",
+    target:[180,210],
+    temp:null,
+    steps:(D,W)=>[
+      {t:0,end:10,what:"Bloom",to:r0(D*3),detail:"Pour about 3× the coffee's weight."},
+      {t:10,end:20,what:"Wet everything",detail:"Gently stir or dig through the bed so no dry pockets remain."},
+      {t:20,end:45,what:"Let it bloom",detail:"Wait until 0:45."},
+      {t:45,end:105,what:"Continuous pour",to:W,detail:"One steady spiral over about a minute, keeping the water level constant."},
+      {t:105,end:112,what:"Rao spin",detail:"A gentle swirl to flatten the bed and wash grounds off the walls."},
+      {t:112,end:210,what:"Drawdown",detail:"Finish around 3:00–3:30 with a flat bed."},
+    ],
+    technique:["A steady, unchanging flow rate is the whole method. Practise hitting the same speed each time.","The swirl at the end matters; a flat bed after drawdown means even extraction."],
+    sources:["v60overview"],
+  },
+  pulse:{
+    name:"Flat-bottom pulse pour", by:"Kalita Wave style (Stumptown, Prima)", native:"kalita", ratio:16.4, grind:2, agit:"low",
+    blurb:"Short pulses with brief pauses keep a shallow, steady water column over a flat bed. Forgiving and sweet; built for Kalita-style brewers.",
+    target:[180,210],
+    temp:null,
+    steps:(D,W)=>{const b=r0(D*2),R=W-b,p=R/4; return [
+      {t:0,end:10,what:"Bloom",to:b,detail:"Shake the brewer to level the grounds first, then pour about 2× the dose."},
+      {t:10,end:30,what:"Let it bloom",detail:"Wait about 30 s."},
+      {t:30,end:45,what:"Pulse 1",to:r0(b+p),detail:"Pour in slow circles within the flat area, then pause."},
+      {t:55,end:70,what:"Pulse 2",to:r0(b+2*p),detail:"Pour again as the level drops a line or two."},
+      {t:80,end:95,what:"Pulse 3",to:r0(b+3*p),detail:"Keep the water column even."},
+      {t:105,end:120,what:"Pulse 4",to:W,detail:"Last pulse, finishing around 2:00."},
+      {t:120,end:210,what:"Drawdown",detail:"Target 3:00–3:30. Faster → finer, slower → coarser."},
+    ];},
+    technique:["Stay inside the flat part of the bed; wave filters' ridges should stay mostly dry.","Pulses of roughly 25–50 g keep the level steady. A slow continuous pour works too if you prefer.","Wave filters are thin and hardly need rinsing, but preheating the brewer still helps."],
+    sources:["stumptown","prima","ineed","extracted","circulor"],
+  },
+};
+
+/* ============================================================
+   STATE + GUIDE RENDER
+   ============================================================ */
+const state = {method:"hoffmann",brewer:"v60",dose:15,roast:"light",process:"washed",origin:"ethiopia",altitude:"",unit:"C",dialBalance:"balanced",dialStrength:"3"};
+try{ const saved=JSON.parse(localStorage.getItem("drawdown.state")||"null"); if(saved) Object.assign(state,saved);}catch(e){}
+const saveState=()=>{try{localStorage.setItem("drawdown.state",JSON.stringify(state))}catch(e){}};
+const $=(s)=>document.querySelector(s);
+const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const tempStr=(c)=>state.unit==="C"?`${Math.round(c)} °C`:`${Math.round(c*9/5+32)} °F`;
+
+function buildControls(){
+  $("#methods").innerHTML=Object.entries(METHODS).map(([k,m],i)=>`<button type="button" class="opt" role="radio" data-method="${k}" aria-checked="${state.method===k}" style="--band:${BANDS[i%BANDS.length][0]};color:${BANDS[i%BANDS.length][1]};--rot:${i%2?0.45:-0.4}deg"><span class="t">${esc(m.name)}</span><span class="s"><span class="no">${String(i+1).padStart(2,"0")}</span>${esc(m.by.split(" · ")[0])}</span></button>`).join("");
+  $("#brewers").innerHTML=Object.entries(BREWERS).map(([k,b])=>`<button type="button" class="brewer" role="radio" data-brewer="${k}" aria-checked="${state.brewer===k}">${ICONS[b.icon]}<span>${esc(b.name)}</span></button>`).join("");
+  $("#roasts").innerHTML=Object.entries(ROASTS).map(([k,r])=>`<button type="button" class="roast" role="radio" data-roast="${k}" aria-checked="${state.roast===k}"><i style="background:${r.sw}"></i><span>${esc(r.name)}</span></button>`).join("");
+  $("#process").innerHTML=Object.entries(PROCESSES).map(([k,p])=>`<option value="${k}">${esc(p.name.split(" (")[0])}</option>`).join("");
+  $("#origin").innerHTML=Object.entries(ORIGINS).map(([k,o])=>`<option value="${k}">${esc(o.name.split(" (")[0])}</option>`).join("");
+  $("#process").value=state.process; $("#origin").value=state.origin; $("#altitude").value=state.altitude;
+  $("#doseRange").value=state.dose; $("#doseNum").value=state.dose;
+  $("#dialBalance").value=state.dialBalance; $("#dialStrength").value=state.dialStrength;
+}
+
+const BANDS=[["#7AE9FF","#1C1202"],["#38271B","#FAFCFC"],["#F1F59F","#1C1202"],["#A3A3A0","#FAFCFC"],["#D9D3C1","#1C1202"],["#4D3D70","#FAFCFC"],["#81D69F","#FAFCFC"]];
+const GRIND = [
+  {n:"Fine",tex:"fine sand"},{n:"Medium-fine",tex:"table salt"},{n:"Medium",tex:"kosher salt"},{n:"Medium-coarse",tex:"coarse sea salt"},{n:"Coarse",tex:"raw sugar / French press"}];
+
+function compute(){
+  const m=METHODS[state.method], b=BREWERS[state.brewer], r=ROASTS[state.roast], p=PROCESSES[state.process], o=ORIGINS[state.origin];
+  const D=+state.dose; const adj=[];
+  // ratio
+  let ratio=m.ratio;
+  if(!m.fixedRatio && p.r){ ratio+=p.r; }
+  const W=Math.round(D*ratio);
+  // temperature
+  let T = m.temp ? m.temp[state.roast] : r.t;
+  adj.push({k:"Roast",v:`${r.name}: ${r.flavor}. ${m.temp?"Start at the method author's temperature for this roast":"Base "+tempStr(r.t)}.`});
+  T+=p.t;
+  if(p.t||p.g) adj.push({k:"Process",v:`${p.note} (${p.t>0?"+":""}${p.t} °C${p.g?", "+(p.g>0?"coarser":"finer"):""})`});
+  let oT=o.t;
+  if(state.origin==="ethiopia" && state.process!=="washed") oT=0;
+  T+=oT;
+  if(o.note) adj.push({k:"Origin",v:o.note+(oT?` (${oT>0?"+":""}${oT} °C)`:"")});
+  const alt=+state.altitude;
+  if(alt>=1900){T+=1; adj.push({k:"Altitude",v:`${alt} m is high-grown and dense: +1 °C.`});}
+  else if(alt && alt<=1200){T-=1; adj.push({k:"Altitude",v:`${alt} m is low-grown and softer: −1 °C.`});}
+  T=Math.max(80,Math.min(100,T));
+  // grind
+  let g=m.grind+(b.g-BREWERS[m.native].g)+r.g+p.g+(o.g||0);
+  if(state.origin==="ethiopia" && state.process==="natural") g+=0.15;
+  if(D>=25){g+=0.25; adj.push({k:"Dose",v:`A ${D} g bed is deep and drains slowly: grind a little coarser.`});}
+  if(D<=12){g-=0.25; adj.push({k:"Dose",v:`A ${D} g bed is shallow and drains fast: grind a little finer.`});}
+  g=Math.max(0,Math.min(4,g));
+  if(m.native!==state.brewer) adj.push({k:"Brewer",v:`${m.name} was written for the ${BREWERS[m.native].name}. On a ${b.name}: ${b.note}`});
+  if(!m.fixedRatio && p.r) adj.push({k:"Ratio",v:`${p.r>0?"Longer":"Shorter"} ratio for ${p.name.toLowerCase()} coffees (1:${ratio.toFixed(1)}).`});
+  // agitation
+  const agitLvl={high:2,moderate:1,low:0}[m.agit]+({more:1,moderate:0,less:-1}[p.agit]||0);
+  const agit=agitLvl>=2?"High":agitLvl===1?"Moderate":"Gentle";
+  const steps=m.steps(D,W,state);
+  const target=[m.target[0]+b.drawAdd,m.target[1]+b.drawAdd];
+  return {m,b,r,p,o,D,W,ratio,T,g,adj,steps,target,agit};
+}
+
+let R=null;
+function render(){
+  R=compute(); const {m,b,r,p,o,D,W,ratio,T,g,steps,target,agit}=R;
+  document.querySelectorAll("[data-method]").forEach(e=>e.setAttribute("aria-checked",e.dataset.method===state.method));
+  document.querySelectorAll("[data-brewer]").forEach(e=>e.setAttribute("aria-checked",e.dataset.brewer===state.brewer));
+  document.querySelectorAll("[data-roast]").forEach(e=>e.setAttribute("aria-checked",e.dataset.roast===state.roast));
+  $("#uC").setAttribute("aria-pressed",state.unit==="C"); $("#uF").setAttribute("aria-pressed",state.unit==="F");
+  $("#dialField").hidden = state.method!=="kasuya";
+  $("#brewerHint").textContent=b.note;
+  const dh=$("#doseHint");
+  if(D>b.max){dh.textContent=`${D} g is more than a standard ${b.name} comfortably holds (about ${b.max} g). Use a larger size or reduce the dose.`;dh.className="hint warn";}
+  else {dh.textContent=`${D} g coffee → ${W} g water (about ${Math.round(W*0.88)} ml in the cup after absorption).${m.fixedWaterNote?" "+m.fixedWaterNote:""}`;dh.className="hint";}
+
+  const mi=Object.keys(METHODS).indexOf(state.method)+1;
+  $("#rIndex").textContent=`Recipe No. ${String(mi).padStart(2,"0")}`;
+  $("#rMeta").innerHTML=[["Brewer",b.name],["Beans",`${r.name}, ${p.name.split(" (")[0].toLowerCase()}`],["Origin",o.name.split(" (")[0]],["Method by",m.by.split(" · ")[0]]].map(([k,v])=>`<div><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+  $("#rTitle").textContent=m.name;
+  $("#rSummary").textContent=m.blurb;
+  const gi=Math.round(g), microns=Math.round((600+g*175)/10)*10, clicks=Math.round(18+g*3.5);
+  $("#stats").innerHTML=[
+    ["Coffee",`${D} g`,"ground right before brewing"],
+    ["Water",`${W} g`,`ratio 1:${ratio.toFixed(1).replace(/\.0$/,"")}`],
+    ["Water temp",tempStr(T),T>=99?"just off the boil":T>=95?"~30 s off the boil":T>=92?"~1 min off the boil":"~2+ min off the boil"],
+    ["Grind",GRIND[gi].n,`like ${GRIND[gi].tex} · ~${microns} µm`],
+    ["Agitation",agit,m.agit==="low"?"let the pours do the work":"swirl/stir as written"],
+    ["Total time",`${f(target[0])}–${f(target[1])}`,"including drawdown"],
+  ].map(([l,v,s])=>`<div class="stat"><span class="label">${l}</span><b>${esc(v)}</b><small>${esc(s)}</small></div>`).join("");
+
+  $("#steps").innerHTML=steps.map((s,i)=>`<li class="step" data-i="${i}"><span class="when">${f(s.t)}</span><span class="what">${esc(s.what)}</span><span class="to">${s.to!=null?"→ "+s.to+" g":""}</span><p>${esc(s.detail)}</p></li>`).join("");
+
+  const tech=[...m.technique];
+  tech.push(`Grind reference: roughly ${clicks} clicks on a Comandante C40 (±3), or ~${microns} µm. Treat this as a starting point and dial in by drawdown time.`);
+  renderSpec();
+  $("#technique").innerHTML=tech.map(t=>`<li>${esc(t)}</li>`).join("");
+  $("#adjust").innerHTML=R.adj.map(a=>`<li><span class="chip">${esc(a.k)}</span><span>${esc(a.v)}</span></li>`).join("");
+
+  const exp=[...(o.notes||[]),...(p.notes||[])];
+  if(state.roast==="dark"||state.roast==="meddark") exp.push("cocoa","roast sweetness");
+  $("#expect").innerHTML=exp.length?exp.map(n=>`<span>${esc(n)}</span>`).join(""):`<span>Use the roaster's notes on the bag</span>`;
+  const clar=[
+    "Paper filters remove oils and fines; rinsing the paper with hot water removes paper taste and preheats the brewer.",
+    "Water matters as much as grind: use filtered water with moderate minerals. Very hard water mutes acidity; distilled water tastes flat.",
+    "A flat bed with no grounds stuck high on the walls after drawdown means an even extraction, which is what makes individual notes distinct.",
+    "Golden Cup reference (SCA): 18–22% extraction and 1.15–1.35% TDS. Many specialty brewers now aim a bit stronger; let taste decide.",
+  ];
+  if(state.roast==="light"||state.roast==="medlight") clar.unshift("Light roasts usually taste best 7–21 days after roasting, once CO₂ has settled. Very fresh coffee blooms hard and can taste sharp.");
+  $("#clarity").innerHTML=clar.map(t=>`<li>${esc(t)}</li>`).join("");
+  $("#prep").innerHTML=[
+    `Heat water to ${tempStr(T)}. No thermometer: boil and wait ${T>=99?"0–15 s":T>=95?"about 30 s":T>=92?"about 1 minute":"about 2 minutes"}.`,
+    `Weigh ${D} g of whole beans and grind just before brewing.`,
+    `Fold the paper along its seam, seat it, and rinse it thoroughly with hot water. Discard the rinse water.`,
+    `Add the grounds, ${b.shape==="flat"?"shake gently to level the bed":"tap to level the bed"}, place on the scale and tare.`,
+    `Start the timer here as you begin the bloom.`,
+  ].map(t=>`<li>${esc(t)}</li>`).join("");
+
+  $("#fix").innerHTML=[
+    ["Sour, sharp, thin, salty","Under-extracted. Grind finer or raise the temperature 1–2 °C. Check the bloom wet everything."],
+    ["Bitter, dry, harsh, astringent","Over-extracted. Grind coarser, lower the temperature 1–2 °C, or agitate less."],
+    ["Hollow: bitter and sour together","Uneven extraction (channelling or fines). Pour more gently, keep the stream off the paper, do the final swirl. Check grinder uniformity."],
+    ["Muddy, flat, notes blurred","Too much agitation or too long. Reduce stirring/swirling; on naturals and ferments go cooler."],
+    ["Too strong or too weak, but balanced","Change the ratio, not the grind: more water to weaken, less to strengthen."],
+    [`Drawdown ends before ${f(target[0])}`,"Grind finer (a couple of clicks at a time)."],
+    [`Drawdown runs past ${f(target[1])}`,"Grind coarser; a stalled bed usually means too many fines or too fine a grind."],
+  ].map(([a,b2])=>`<tr><th scope="row">${esc(a)}</th><td>${esc(b2)}</td></tr>`).join("");
+
+  const srcKeys=[...new Set([...m.sources,...(p.src||[]),"tempRoast","tempOrigin","golden","goldenCrit"])];
+  $("#sources").innerHTML=srcKeys.map(k=>`<li><a href="${SRC[k][1]}" target="_blank" rel="noopener">${esc(SRC[k][0])}</a></li>`).join("");
+  saveState(); resetTimer();
+}
+
+/* ---------------- Expected-cup spectrum ---------------- */
+function profile(){
+  const {m,p,b}=R, clamp=v=>Math.max(0.04,Math.min(0.96,v));
+  const acid={light:.18,medlight:.33,medium:.52,meddark:.72,dark:.88}[state.roast]
+    +({natural:.08,honey:.05,anaerobic:.04,wethulled:.15,decaf:.08}[state.process]||-.04)
+    +({kenya:-.08,ethiopia:-.06,brazil:.1,indonesia:.1}[state.origin]||0)
+    +(state.method==="kasuya"?({brighter:-.08,sweeter:.08}[state.dialBalance]||0):0);
+  const body={v60:.34,origami:.28,kalita:.5,orea:.42,chemex:.14,melitta:.64}[state.brewer]
+    +({natural:.1,honey:.1,wethulled:.24,anaerobic:.06}[state.process]||0)
+    +({meddark:.08,dark:.14}[state.roast]||0);
+  const funk={washed:.14,honey:.38,natural:.62,anaerobic:.86,wethulled:.58,decaf:.35}[state.process];
+  const inten={high:.78,moderate:.52,low:.28}[m.agit]+(state.method==="kasuya"?({2:-.1,4:.1}[state.dialStrength]||0):0)+(state.dose>=25?.05:0);
+  return [["Bright","Mellow",clamp(acid)],["Tea-like","Syrupy",clamp(body)],["Clean","Funky",clamp(funk)],["Gentle","Intense",clamp(inten)]];
+}
+function renderSpec(){
+  const rows=profile(); let far=0,fi=0; rows.forEach((r,i)=>{const d=Math.abs(r[2]-.5); if(d>far){far=d;fi=i;}});
+  $("#spec").innerHTML=`<svg class="glow" aria-hidden="true"><defs><filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter></defs><path filter="url(#blur)"/></svg>`+
+    rows.map((r,i)=>`<div class="srow"><span class="send${i===fi?" hi":""}">${r[0]}</span><span class="strack">${[0.1,0.3,0.5,0.7,0.9].map(t=>`<i class="tick" style="left:${t*100}%"></i>`).join("")}<b class="sdot${i===fi?" hi":""}" style="left:${r[2]*100}%" title="${r[0]} ← → ${r[1]}"></b></span><span class="send${i===fi?" hi":""}">${r[1]}</span></div>`).join("");
+  drawGlow();
+}
+function drawGlow(){
+  const wrap=$("#spec"), svg=wrap&&wrap.querySelector(".glow"); if(!svg) return;
+  const tracks=[...wrap.querySelectorAll(".strack")]; if(!tracks.length) return;
+  const box=wrap.getBoundingClientRect();
+  svg.setAttribute("width",box.width); svg.setAttribute("height",box.height); svg.setAttribute("viewBox",`0 0 ${box.width} ${box.height}`);
+  const pts=tracks.map(t=>{const tb=t.getBoundingClientRect(), d=t.querySelector(".sdot"); return [tb.left-box.left+parseFloat(d.style.left)/100*tb.width, tb.top-box.top+tb.height/2];});
+  let dpath=`M${pts[0][0]},${pts[0][1]}`;
+  for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i],my=(y0+y1)/2; dpath+=` C${x0},${my} ${x1},${my} ${x1},${y1}`;}
+  svg.querySelector("path").setAttribute("d",dpath);
+}
+addEventListener("resize",()=>drawGlow());
+
+/* ---------------- Timer ---------------- */
+const timer={base:0,started:null,raf:0,lock:null};
+function elapsed(){return timer.base+(timer.started?(performance.now()-timer.started)/1000:0);}
+function tick(){
+  const s=elapsed(); $("#clock").textContent=f(Math.floor(s));
+  const steps=R.steps; let idx=-1; steps.forEach((st,i)=>{if(s>=st.t) idx=i;});
+  document.querySelectorAll(".step").forEach((el,i)=>{el.classList.toggle("active",i===idx);el.classList.toggle("done",i<idx);});
+  const endT=R.target[1]; $("#tBar").style.width=Math.min(100,s/endT*100)+"%";
+  if(idx>=0){const st=steps[idx], nx=steps[idx+1];
+    $("#nowBig").textContent=st.to!=null?`${st.what}: pour to ${st.to} g`:st.what;
+    $("#nowSub").textContent=nx?`Next: ${nx.what}${nx.to!=null?" (to "+nx.to+" g)":""} in ${Math.max(0,Math.ceil(nx.t-s))} s`:(s>R.target[1]?"Done. Note your total time for the journal.":"Drawdown. Stop the timer when it finishes dripping.");}
+  if(timer.started) timer.raf=requestAnimationFrame(tick);
+}
+async function startTimer(){
+  if(timer.started){timer.base=elapsed();timer.started=null;cancelAnimationFrame(timer.raf);$("#tStart").textContent="Resume";try{timer.lock&&timer.lock.release();}catch(e){}return;}
+  timer.started=performance.now();$("#tStart").textContent="Pause";tick();
+  try{ if(navigator.wakeLock) timer.lock=await navigator.wakeLock.request("screen"); }catch(e){}
+}
+function resetTimer(){
+  cancelAnimationFrame(timer.raf);timer.base=0;timer.started=null;
+  $("#tStart").textContent="Start";$("#clock").textContent="0:00";$("#tBar").style.width="0";
+  $("#nowBig").textContent="Ready when you are";$("#nowSub").textContent="Rinse the filter, preheat, add grounds, tare the scale, then start.";
+  document.querySelectorAll(".step").forEach(el=>el.classList.remove("active","done"));
+}
+
+/* ---------------- Guide events ---------------- */
+document.addEventListener("click",(e)=>{
+  const mb=e.target.closest("[data-method]"); if(mb){state.method=mb.dataset.method; if(METHODS[state.method].native==="kalita" && BREWERS[state.brewer].shape!=="flat") state.brewer="kalita"; render(); return;}
+  const bb=e.target.closest("[data-brewer]"); if(bb){state.brewer=bb.dataset.brewer; render(); return;}
+  const rb=e.target.closest("[data-roast]"); if(rb){state.roast=rb.dataset.roast; render(); return;}
+});
+const setDose=(v)=>{v=Math.max(8,Math.min(45,+v||15)); state.dose=v; $("#doseRange").value=v; $("#doseNum").value=v; render();};
+$("#doseRange").addEventListener("input",e=>setDose(e.target.value));
+$("#doseNum").addEventListener("change",e=>setDose(e.target.value));
+$("#process").addEventListener("change",e=>{state.process=e.target.value;render();});
+$("#origin").addEventListener("change",e=>{state.origin=e.target.value;render();});
+$("#altitude").addEventListener("change",e=>{state.altitude=e.target.value;render();});
+$("#dialBalance").addEventListener("change",e=>{state.dialBalance=e.target.value;render();});
+$("#dialStrength").addEventListener("change",e=>{state.dialStrength=e.target.value;render();});
+$("#uC").onclick=()=>{state.unit="C";render();}; $("#uF").onclick=()=>{state.unit="F";render();};
+$("#tStart").onclick=startTimer; $("#tReset").onclick=resetTimer;
+
+/* ---------------- Tabs ---------------- */
+function showTab(which){
+  const g=which==="guide"; $("#viewGuide").hidden=!g; $("#viewJournal").hidden=g;
+  $("#tabGuide").setAttribute("aria-selected",g); $("#tabJournal").setAttribute("aria-selected",!g);
+  try{history.replaceState(null,"",g?"#guide":"#journal");}catch(e){}
+  if(!g) renderJournal();
+}
+$("#tabGuide").onclick=()=>showTab("guide"); $("#tabJournal").onclick=()=>showTab("journal");
+
+/* ============================================================
+   JOURNAL — IndexedDB in the visitor's browser
+   ============================================================ */
+const store={db:null,mem:new Map(),
+  open(){return new Promise(res=>{try{const q=indexedDB.open("drawdown",1);q.onupgradeneeded=()=>q.result.createObjectStore("entries",{keyPath:"id"});q.onsuccess=()=>{this.db=q.result;res();};q.onerror=()=>res();}catch(e){res();}});},
+  os(mode){return this.db.transaction("entries",mode).objectStore("entries");},
+  all(){ if(!this.db) return Promise.resolve([...this.mem.values()]); return new Promise((res,rej)=>{const q=this.os("readonly").getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});},
+  put(v){ if(!this.db){this.mem.set(v.id,v);return Promise.resolve();} return new Promise((res,rej)=>{const q=this.os("readwrite").put(v);q.onsuccess=()=>res();q.onerror=()=>rej(q.error);});},
+  del(id){ if(!this.db){this.mem.delete(id);return Promise.resolve();} return new Promise((res,rej)=>{const q=this.os("readwrite").delete(id);q.onsuccess=()=>res();q.onerror=()=>rej(q.error);});},
+};
+let entries=[];
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600);}
+
+async function renderJournal(){
+  entries=(await store.all()).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const q=$("#jSearch").value.trim().toLowerCase();
+  const list=q?entries.filter(e=>JSON.stringify([e.name,e.roaster,e.origin,e.process,e.variety,e.bagNotes,e.tasted]).toLowerCase().includes(q)):entries;
+  $("#jEmpty").hidden=entries.length>0;
+  const order=[...entries].sort((a,b)=>(a.created||0)-(b.created||0)).map(e=>e.id);
+  $("#jGrid").innerHTML=list.map(e=>`<button type="button" class="entry" data-entry="${esc(e.id)}"><span class="ftab"><span>No. ${String(order.indexOf(e.id)+1).padStart(3,"0")}</span><span>${esc((e.brewDate||"").slice(2).replace(/-/g,"."))}</span></span><span class="ecard">
+    <div class="ph">${e.photos&&e.photos[0]?`<img src="${e.photos[0]}" alt="">`:`<span class="label">No photo</span>`}</div>
+    <div class="in"><span class="n">${esc(e.name||"Untitled coffee")}</span>
+    <span class="m">${esc([e.roaster,e.origin].filter(Boolean).join(" · "))}</span>
+    <span class="m">${esc([e.process,e.roast].filter(Boolean).join(" · "))}</span>
+    <span class="stars" aria-label="${e.rating||0} of 5">${"★".repeat(e.rating||0)}${"☆".repeat(5-(e.rating||0))}</span>
+    ${e.tasted?`<span class="m">${esc(e.tasted.slice(0,90))}${e.tasted.length>90?"…":""}</span>`:""}</div></span></button>`).join("");
+  if(entries.length && !list.length) $("#jGrid").innerHTML=`<p class="hint">No entries match "${esc(q)}".</p>`;
+}
+$("#jSearch").addEventListener("input",renderJournal);
+$("#jGrid").addEventListener("click",e=>{const b=e.target.closest("[data-entry]"); if(b) openEntry(entries.find(x=>x.id===b.dataset.entry));});
+$("#jNew").onclick=()=>openEntry();
+
+/* ---------------- Entry dialog ---------------- */
+const FIELDS=["name","roaster","origin","producer","process","roast","variety","altitude","roastDate","brewDate","bagNotes","method","brewer","ratio","temp","grind","time","tasted","next"];
+const SCORES=[["acidity","Acidity"],["sweetness","Sweetness"],["body","Body"],["clarity","Clarity"],["bitterness","Bitterness"],["aftertaste","Aftertaste"]];
+let cur=null;
+$("#sliders").innerHTML=SCORES.map(([k,l])=>`<label class="srange"><span class="sl">${l}</span><span class="sr"><span>low</span><input type="range" min="1" max="5" step="1" id="s_${k}" value="3"><span>high</span></span><span class="mono sv" id="sv_${k}">3</span></label>`).join("");
+SCORES.forEach(([k])=>$("#s_"+k).addEventListener("input",e=>$("#sv_"+k).textContent=e.target.value));
+$("#rate").innerHTML=[1,2,3,4,5].map(n=>`<button type="button" data-rate="${n}" aria-label="${n} star${n>1?"s":""}">★</button>`).join("");
+$("#rate").addEventListener("click",e=>{const b=e.target.closest("[data-rate]"); if(!b) return; cur.rating=+b.dataset.rate; paintRate();});
+const paintRate=()=>document.querySelectorAll("[data-rate]").forEach(b=>b.classList.toggle("on",+b.dataset.rate<=(cur.rating||0)));
+
+function openEntry(e,prefill){
+  const today=new Date().toISOString().slice(0,10);
+  cur=e?JSON.parse(JSON.stringify(e)):{id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),photos:[],scores:{},rating:0,brewDate:today,...(prefill||{})};
+  FIELDS.forEach(k=>$("#f_"+k).value=cur[k]||"");
+  SCORES.forEach(([k])=>{const v=cur.scores?.[k]||3;$("#s_"+k).value=v;$("#sv_"+k).textContent=v;});
+  paintRate(); paintPhotos();
+  $("#ocrBox").hidden=!cur.ocr; $("#ocrText").textContent=cur.ocr||"";
+  $("#scanStatus").textContent="Scan reads the text on the bag and fills in the fields below.";
+  $("#dTitle").textContent=e?(e.name||"Entry"):"New entry";
+  $("#dDelete").hidden=!e; $("#dUse").hidden=!e; $("#dDelete").textContent="Delete entry"; $("#dDelete").dataset.armed="";
+  $("#dlg").showModal();
+}
+function paintPhotos(){
+  $("#photos").innerHTML=cur.photos.map((p,i)=>`<figure><img src="${p}" alt="Bag photo ${i+1}"><button type="button" data-rm="${i}" aria-label="Remove photo">×</button></figure>`).join("");
+}
+$("#photos").addEventListener("click",e=>{const b=e.target.closest("[data-rm]"); if(b){cur.photos.splice(+b.dataset.rm,1);paintPhotos();}});
+$("#dClose").onclick=()=>$("#dlg").close();
+$("#dSave").onclick=async()=>{
+  FIELDS.forEach(k=>cur[k]=$("#f_"+k).value.trim());
+  cur.scores={}; SCORES.forEach(([k])=>cur.scores[k]=+$("#s_"+k).value);
+  cur.updated=Date.now(); if(!cur.created) cur.created=cur.updated;
+  try{await store.put(cur);$("#dlg").close();toast("Saved to your journal");renderJournal();}
+  catch(err){toast("Couldn't save: browser storage is full or blocked. Try removing a photo.");}
+};
+$("#dDelete").onclick=async()=>{
+  const b=$("#dDelete"); if(!b.dataset.armed){b.dataset.armed="1";b.textContent="Tap again to delete";return;}
+  await store.del(cur.id); $("#dlg").close(); toast("Entry deleted"); renderJournal();
+};
+$("#dUse").onclick=()=>{
+  const lc=(s)=>(s||"").toLowerCase();
+  const pr=lc($("#f_process").value), ro=lc($("#f_roast").value), or=lc($("#f_origin").value);
+  if(/anaerob|carbonic|co-?ferment|infus/.test(pr)) state.process="anaerobic"; else if(/natural|dry/.test(pr)) state.process="natural"; else if(/honey|pulped/.test(pr)) state.process="honey"; else if(/hull|giling/.test(pr)) state.process="wethulled"; else if(/decaf|swiss|sugar ?cane|ea /.test(pr)) state.process="decaf"; else if(/wash/.test(pr)) state.process="washed";
+  if(/medium[- ]?light|light[- ]?medium/.test(ro)) state.roast="medlight"; else if(/medium[- ]?dark/.test(ro)) state.roast="meddark"; else if(/light|filter|nordic/.test(ro)) state.roast="light"; else if(/dark|french|italian/.test(ro)) state.roast="dark"; else if(/medium|omni/.test(ro)) state.roast="medium";
+  const oKey=matchOrigin(or); if(oKey) state.origin=oKey;
+  const alt=parseInt(($("#f_altitude").value||"").replace(/[^\d]/g," ").trim().split(/\s+/)[0]); if(alt>300) state.altitude=String(alt);
+  $("#dlg").close(); buildControls(); render(); showTab("guide"); toast("Guide set for these beans");
+};
+$("#logBrew").onclick=()=>{
+  const {m,b,r,p,o,D,W,T,g}=R;
+  openEntry(null,{method:m.name+" ("+m.by.split(" ·")[0]+")",brewer:b.name,ratio:`${D} g / ${W} g`,temp:tempStr(T),grind:`${GRIND[Math.round(g)].n} (~${Math.round(18+g*3.5)} clicks Comandante)`,
+    process:p.name.split(" (")[0],roast:r.name,origin:state.origin==="unknown"?"":o.name.split(" (")[0],altitude:state.altitude||""});
+  showTab("journal");
+};
+
+/* ---------------- Photos + label scanning ---------------- */
+function compress(file,max=1400,q=0.8){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();
+  img.onload=()=>{const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",q));};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("That file isn't an image this browser can open."));};img.src=url;});}
+$("#photoInput").addEventListener("change",async e=>{
+  for(const file of e.target.files){try{cur.photos.push(await compress(file));}catch(err){toast(err.message);}}
+  e.target.value=""; paintPhotos();
+});
+let tessLoading=null;
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(!tessLoading) tessLoading=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=res;s.onerror=()=>{tessLoading=null;rej(new Error("Couldn't load the text reader. Check your connection."));};document.head.appendChild(s);});
+  return tessLoading;
+}
+$("#scanInput").addEventListener("change",async e=>{
+  const file=e.target.files[0]; e.target.value=""; if(!file) return;
+  const st=$("#scanStatus");
+  try{
+    const dataUrl=await compress(file,2000,0.9);
+    cur.photos.unshift(await compress(file)); paintPhotos();
+    st.textContent="Loading text reader (first time takes a few seconds)…";
+    await loadTesseract();
+    const worker=await Tesseract.createWorker("eng",1,{logger:m=>{if(m.status==="recognizing text") st.textContent=`Reading label… ${Math.round(m.progress*100)}%`;}});
+    const {data}=await worker.recognize(dataUrl); await worker.terminate();
+    const text=(data.text||"").trim();
+    cur.ocr=text; $("#ocrText").textContent=text||"(no text found)"; $("#ocrBox").hidden=false;
+    const filled=applyParsed(parseLabel(text));
+    st.textContent=filled.length?`Filled in: ${filled.join(", ")}. Check them against the bag.`:"Couldn't find recognisable details. Try a closer, well-lit, straight-on photo, or type them in.";
+  }catch(err){ st.textContent=err.message||"Scanning failed. You can still type the details in."; }
+});
+
+const ORIGIN_WORDS=[["ethiopia",/ethiopia|yirgacheffe|yirgachefe|sidama|sidamo|guji|gedeo|gedeb|limu|jimma|harrar|harar|bench maji/],["kenya",/kenya|nyeri|kirinyaga|embu|murang/],["rwanda",/rwanda|burundi|kayanza|ngozi/],["colombia",/colombia|huila|nari[nñ]o|cauca|tolima|antioquia/],["central",/guatemala|antigua|huehuetenango|costa rica|tarraz[uú]|panama|boquete|honduras|el salvador|nicaragua|mexico|chiapas|oaxaca/],["peru",/peru|bolivia|cajamarca|caranavi/],["brazil",/brazil|brasil|cerrado|sul de minas|mogiana/],["indonesia",/sumatra|java|sulawesi|indonesia|aceh|gayo|toraja|bali|papua/],["yemen",/yemen|haraz/],["asia",/india|china|yunnan|vietnam|thailand|myanmar|laos|philippines|taiwan|papua new guinea|png/]];
+function matchOrigin(t){for(const [k,re] of ORIGIN_WORDS) if(re.test(t)) return k; return null;}
+function parseLabel(raw){
+  const t=raw.toLowerCase(), out={}, lines=raw.split(/\n+/).map(s=>s.trim()).filter(s=>s.length>2);
+  const countries=raw.match(/\b(Ethiopia|Kenya|Rwanda|Burundi|Colombia|Guatemala|Costa Rica|Panama|Honduras|El Salvador|Nicaragua|Mexico|Peru|Bolivia|Brazil|Sumatra|Indonesia|Java|Sulawesi|Yemen|India|China|Yunnan|Ecuador|Tanzania|Uganda|Congo|DRC|Papua New Guinea)\b/i);
+  const regions=raw.match(/\b(Yirgacheffe|Sidama|Sidamo|Guji|Gedeb|Limu|Jimma|Harrar|Nyeri|Kirinyaga|Embu|Huila|Nari[nñ]o|Cauca|Tolima|Antioquia|Antigua|Huehuetenango|Tarraz[uú]|Boquete|Chiapas|Oaxaca|Cajamarca|Cerrado|Aceh|Gayo|Toraja|Haraz|Kayanza|Caranavi)\b/i);
+  if(countries||regions) out.origin=[countries&&countries[0],regions&&regions[0]].filter(Boolean).map(s=>s[0].toUpperCase()+s.slice(1)).join(", ");
+  const proc=t.match(/(anaerobic[a-z ]{0,12}|carbonic maceration|co-?ferment[a-z]*|thermal shock|double fermentation|wet[- ]hulled|giling basah|(?:black|red|yellow|white) honey|honey|pulped natural|fully washed|double washed|washed|natural|dry process(?:ed)?|swiss water|sugar ?cane|decaf)/);
+  if(proc) out.process=proc[1].replace(/\s+$/,"").replace(/^\w/,c=>c.toUpperCase());
+  const roast=t.match(/(medium[- ]light|light[- ]medium|medium[- ]dark|extra light|light roast|dark roast|medium roast|filter roast|omni ?roast|espresso roast|\blight\b|\bdark\b|\bmedium\b)/);
+  if(roast) out.roast=roast[1].replace(/ roast/,"").replace(/^\w/,c=>c.toUpperCase());
+  const alt=raw.match(/(\d[\d,.]{2,5})\s*(?:[-–—~]|to)?\s*(\d[\d,.]{2,5})?\s*(?:m\.?a\.?s\.?l\.?|masl|meters|metres|m\b)/i);
+  if(alt) out.altitude=alt[2]?`${alt[1].replace(/[,.]/g,"")}–${alt[2].replace(/[,.]/g,"")} m`:`${alt[1].replace(/[,.]/g,"")} m`;
+  const vars=raw.match(/\b(Gesha|Geisha|Bourbon|Pink Bourbon|Red Bourbon|Yellow Bourbon|Typica|Caturra|Catua[ií]|SL[- ]?28|SL[- ]?34|Ruiru ?11|Batian|Heirloom|Landrace|74110|74112|74158|Pacamara|Castillo|Wush ?Wush|Sidra|Mundo Novo|Catimor|Maragogype|Java|Ethiopian Landrace|Kurume)\b/gi);
+  if(vars) out.variety=[...new Set(vars.map(v=>v.trim()))].join(", ");
+  const notesLine=raw.match(/(?:tasting notes|notes|flavou?rs?|tastes like|cup)\s*[:\-–]?\s*([^\n]+)/i);
+  if(notesLine) out.bagNotes=notesLine[1].replace(/\s+/g," ").trim();
+  const date=raw.match(/(?:roast(?:ed)?(?: on| date)?)\s*[:\-]?\s*(\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4})/i);
+  if(date){const d=toISO(date[1]); if(d) out.roastDate=d;}
+  const prod=raw.match(/(?:producer|farm|finca|washing station|station|estate|cooperative|co-op)\s*[:\-]?\s*([^\n]{3,50})/i);
+  if(prod) out.producer=prod[1].trim();
+  const nameLine=lines.find(l=>/[a-z]/i.test(l) && l.length<40 && !/roast|process|altitude|notes|masl|variet|origin|net|weight|\d{3,}/i.test(l));
+  if(nameLine) out.name=nameLine;
+  return out;
+}
+function toISO(s){const p=s.split(/[\/.\-]/).map(Number); let y,m,d;
+  if(p[0]>31){[y,m,d]=p;} else {[d,m,y]=p; if(m>12){const x=d;d=m;m=x;}} if(y<100) y+=2000;
+  if(!(y>2000&&m>=1&&m<=12&&d>=1&&d<=31)) return null; return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+function applyParsed(o){const filled=[];const labels={name:"name",origin:"origin",process:"process",roast:"roast",altitude:"altitude",variety:"variety",bagNotes:"tasting notes",roastDate:"roast date",producer:"producer"};
+  for(const [k,v] of Object.entries(o)){const el=$("#f_"+k); if(el && !el.value.trim() && v){el.value=v;filled.push(labels[k]);}} return filled;}
+
+/* ---------------- Backup ---------------- */
+$("#jExport").onclick=async()=>{
+  const all=await store.all(); if(!all.length){toast("Nothing to export yet");return;}
+  const blob=new Blob([JSON.stringify({app:"drawdown",version:1,exported:new Date().toISOString(),entries:all})],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`drawdown-journal-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+};
+$("#jImport").addEventListener("change",async e=>{
+  const file=e.target.files[0]; e.target.value=""; if(!file) return;
+  try{const data=JSON.parse(await file.text()); const list=Array.isArray(data)?data:data.entries; if(!Array.isArray(list)) throw 0;
+    let n=0; for(const x of list){ if(x&&x.id){await store.put(x);n++;} } toast(`Imported ${n} entr${n===1?"y":"ies"}`); renderJournal();}
+  catch(err){toast("That file isn't a Drawdown backup.");}
+});
+
+/* ---------------- Boot ---------------- */
+buildControls(); render();
+store.open().then(()=>{ if(location.hash==="#journal") showTab("journal"); });
+</script>
+</body>
+</html>
